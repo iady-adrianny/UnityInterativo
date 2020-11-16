@@ -1,47 +1,63 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Security.Cryptography;
-using System.Threading;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class ControlePersonagem : MonoBehaviour
 {
     public float velocidade = 0;
-    Vector3 direção2;
-    public float força;
-    Rigidbody rb;
     private int cont;
     public CharacterController controle;
+    private float gravity = -15f;
+    Vector3 velocity;
+    public Transform cam;
+    private float jumpHeight = 50;
+    bool isGrounded;
+    public Transform groundCheck;
+    private float groundDistance = 0f;
+    public LayerMask groundMask;
+
+    float turnSmoothVelocity;
+    public float turnSmoothTime = 0.1f;
 
 
     // Start is called before the first frame update
     void Start()
     {
-        rb = GetComponent<Rigidbody>();
-        direção2 = new Vector3(0, 1, 0);
         cont = 0;
     }
 
     // Update is called once per frame
     void Update()
     {
+        //pular
+        isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
+         if (isGrounded && velocity.y < 0)
+         {
+             velocity.y = -2f;
+         }
+
+         if (Input.GetKeyDown(KeyCode.Space))// && isGrounded)
+         {
+             velocity.y = Mathf.Sqrt(jumpHeight * -2 * gravity);
+         }
+
+        //andar
         float horizontal = Input.GetAxisRaw("Horizontal");
         float vertical = Input.GetAxisRaw("Vertical");
         Vector3 direção = new Vector3(horizontal, 0f, vertical).normalized;
 
         if (direção.magnitude >= 0.1f)
         {
-            float alvo = Mathf.Atan2(direção.x, direção.y);
-            controle.Move(direção * velocidade * Time.deltaTime);
+            float targetAngle = Mathf.Atan2(direção.x, direção.z) * Mathf.Rad2Deg + cam.eulerAngles.y;
+            float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
+            transform.rotation = Quaternion.Euler(0f, angle, 0f);
+
+            Vector3 moveDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
+            controle.Move(moveDir.normalized * velocidade * Time.deltaTime);
         }
 
-
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            rb.AddForce(direção2 * força);
-        }
+        //gravidade
+        velocity.y += gravity * Time.deltaTime;
+        controle.Move(velocity / 10 * Time.deltaTime);
 
         if (cont == 35)
         {
